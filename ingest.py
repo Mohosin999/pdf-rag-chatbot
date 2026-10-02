@@ -38,7 +38,7 @@ print(f"Total chunks: {len(chunks)}")
 # ৩. Create embeddings and vectorstore
 # ============================================
 embeddings = GoogleGenerativeAIEmbeddings(
-    model="models/embedding-001",
+    model="models/gemini-embedding-001",
     google_api_key=os.getenv("GOOGLE_API_KEY")
 )
 
@@ -48,4 +48,4 @@ vectorstore = Chroma.from_documents(
     persist_directory="./chroma_db"
 )
 
-print("ডেটাবেসে জমা হয়েছে!")
+print("Database successfully created!")
