@@ -1,0 +1,15 @@
+# python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# env / secrets - kokhonoi push korba na
+.env
+
+# vector db - regenerate kora jay ingest.py diye
+chroma_db/
+
+# optional
+*.log
+.vscode/
