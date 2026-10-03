@@ -5,18 +5,19 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
 from dotenv import load_dotenv
 
+import config
+
 load_dotenv()
 
 # ============================================
 # Load PDF
 # ============================================
-DATA_DIR = "data"
-pdf_files = [f for f in os.listdir(DATA_DIR) if f.endswith(".pdf")]
+pdf_files = [f for f in os.listdir(config.DATA_DIR) if f.endswith(".pdf")]
 
 all_documents = []
 
 for pdf_file in pdf_files:
-    pdf_path = os.path.join(DATA_DIR, pdf_file)
+    pdf_path = os.path.join(config.DATA_DIR, pdf_file)
     loader = PyPDFLoader(pdf_path)
     documents = loader.load()
     all_documents.extend(documents)
@@ -26,8 +27,8 @@ for pdf_file in pdf_files:
 # Text Split (Chunking)
 # ============================================
 text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1000,
-    chunk_overlap=200,
+    chunk_size=config.CHUNK_SIZE,
+    chunk_overlap=config.CHUNK_OVERLAP,
     separators=["\n\n", "\n", ". ", " ", ""]
 )
 
@@ -38,14 +39,14 @@ print(f"Total chunks: {len(chunks)}")
 # Create embeddings and vectorstore
 # ============================================
 embeddings = GoogleGenerativeAIEmbeddings(
-    model="models/gemini-embedding-001",
+    model=config.EMBEDDING_MODEL,
     google_api_key=os.getenv("GOOGLE_API_KEY")
 )
 
 vectorstore = Chroma.from_documents(
     documents=chunks,
     embedding=embeddings,
-    persist_directory="./chroma_db"
+    persist_directory=config.CHROMA_DIR
 )
 
 print("Database successfully created!")
