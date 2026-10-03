@@ -2,17 +2,23 @@ import streamlit as st
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_chroma import Chroma
 from langchain_classic.chains import RetrievalQA
+from langchain_classic.retrievers import ContextualCompressionRetriever
+from langchain_classic.retrievers.document_compressors import CrossEncoderReranker
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
+from langchain_community.retrievers import BM25Retriever
+from langchain_classic.retrievers import EnsembleRetriever
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
-# Page title
-st.title("QA system from PDF")
-st.write("Ask any question from your document")
+st.title("PDF Question Answering System")
+st.write("Ask any question from your document.")
 
 # ============================================
-# ১. Load vector database
+# 1. Load vector database
 # ============================================
 @st.cache_resource
 def load_vectorstore():
@@ -28,7 +34,59 @@ def load_vectorstore():
 vectorstore = load_vectorstore()
 
 # ============================================
-# ২. LLM and retrieval chain
+# 2. Rebuild chunks for BM25 retriever
+# ============================================
+@st.cache_resource
+def load_chunks():
+    data_dir = "data"
+    pdf_files = [f for f in os.listdir(data_dir) if f.endswith(".pdf")]
+    all_docs = []
+    for pdf_file in pdf_files:
+        loader = PyPDFLoader(os.path.join(data_dir, pdf_file))
+        all_docs.extend(loader.load())
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000, chunk_overlap=200
+    )
+    return splitter.split_documents(all_docs)
+
+chunks = load_chunks()
+
+# ============================================
+# 3. Hybrid retriever (vector + BM25)
+# ============================================
+@st.cache_resource
+def load_ensemble_retriever(_chunks):
+    vector_retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
+    bm25_retriever = BM25Retriever.from_documents(_chunks)
+    bm25_retriever.k = 4
+
+    return EnsembleRetriever(
+        retrievers=[vector_retriever, bm25_retriever],
+        weights=[0.6, 0.4]
+    )
+
+ensemble_retriever = load_ensemble_retriever(chunks)
+
+# ============================================
+# 4. Reranker on top of hybrid retriever
+# ============================================
+@st.cache_resource
+def load_reranker():
+    cross_encoder = HuggingFaceCrossEncoder(
+        model_name="BAAI/bge-reranker-base"
+    )
+    return CrossEncoderReranker(model=cross_encoder, top_n=4)
+
+reranker = load_reranker()
+
+compression_retriever = ContextualCompressionRetriever(
+    base_compressor=reranker,
+    base_retriever=ensemble_retriever
+)
+
+# ============================================
+# 5. LLM and QA chain
 # ============================================
 llm = ChatGoogleGenerativeAI(
     model="gemini-3.1-flash-lite",
@@ -39,23 +97,23 @@ llm = ChatGoogleGenerativeAI(
 qa_chain = RetrievalQA.from_chain_type(
     llm=llm,
     chain_type="stuff",
-    retriever=vectorstore.as_retriever(search_kwargs={"k": 4}),
+    retriever=compression_retriever,
     return_source_documents=True
 )
 
 # ============================================
-# ৩. Question interface
+# 6. Question interface
 # ============================================
-query = st.text_input("Write your question: ")
+query = st.text_input("Write your question:")
 
 if query:
     with st.spinner("Generating answer..."):
         result = qa_chain.invoke({"query": query})
-    
+
     st.subheader("Answer")
     st.write(result["result"])
-    
-    with st.expander("Comes from which documents?"):
+
+    with st.expander("Source documents"):
         for doc in result["source_documents"]:
             page = doc.metadata.get("page", "?")
             st.write(f"Page {page}: {doc.page_content[:200]}...")

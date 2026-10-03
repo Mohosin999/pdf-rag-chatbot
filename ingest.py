@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ============================================
-# ১. Load PDF
+# Load PDF
 # ============================================
 DATA_DIR = "data"
 pdf_files = [f for f in os.listdir(DATA_DIR) if f.endswith(".pdf")]
@@ -23,7 +23,7 @@ for pdf_file in pdf_files:
     print(f"Loaded PDF: {pdf_file} ({len(documents)} page)")
 
 # ============================================
-# ২. Text Split (Chunking)
+# Text Split (Chunking)
 # ============================================
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1000,
@@ -35,7 +35,7 @@ chunks = text_splitter.split_documents(all_documents)
 print(f"Total chunks: {len(chunks)}")
 
 # ============================================
-# ৩. Create embeddings and vectorstore
+# Create embeddings and vectorstore
 # ============================================
 embeddings = GoogleGenerativeAIEmbeddings(
     model="models/gemini-embedding-001",
