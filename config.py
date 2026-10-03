@@ -2,8 +2,8 @@
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 RETRIEVAL_K = 4
-EMBEDDING_MODEL = "models/embedding-001"
-LLM_MODEL = "gemini-3.5-flash"
+EMBEDDING_MODEL = "models/gemini-embedding-001"
+LLM_MODEL = "gemini-3.1-flash-lite"
 TEMPERATURE = 0.3
 RERANK_TOP_N = 4
 
